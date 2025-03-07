@@ -1,9 +1,23 @@
 {
-  "name": "vuetify-editable-image-field",
+  "name": "@moisespsena/vuetify-editable-image-field",
   "repository": "https://github.com/moisespsena-js/vuetify-editable-image-field",
+  "author": "Moisés P. Sena",
   "version": "0.0.1",
   "private": false,
+  "description": "Vuetify image field component with editor",
   "type": "module",
+  "keywords": [
+    "vue",
+    "vuetify",
+    "component",
+    "input",
+    "field",
+    "editor",
+    "picture",
+    "image",
+    "image-field",
+    "image-input"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build ",
