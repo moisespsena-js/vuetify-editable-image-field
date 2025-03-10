@@ -236,6 +236,9 @@ function photoTaken(data: any) {
   margin-left: -50px;
   margin-top: 10px;
 }
+.image-full img {
+  border: 2px solid black;
+}
 </style>
 <style>
 .tui-image-editor-help-menu {
