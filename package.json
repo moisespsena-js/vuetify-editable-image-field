@@ -1,12 +1,12 @@
 {
-  "name": "@moisespsena/vuetify-editable-image-field",
+  "name": "vuetify-editable-image-field",
   "repository": {
     "url": "git+https://github.com/moisespsena-js/vuetify-editable-image-field.git"
   },
   "author": "Moisés P. Sena",
   "version": "0.0.1",
   "private": false,
-  "description": "Vuetify image field component with editor",
+  "description": "Vuetify 3 image field component with editor",
   "type": "module",
   "keywords": [
     "vue",
