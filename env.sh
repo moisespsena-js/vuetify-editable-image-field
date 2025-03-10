@@ -8,6 +8,8 @@ else
   sourced=1
 fi
 
+DIR=$(realpath "$DIR")
+
 [ "$NVM_DIR" = '' ] && {
   if [ -e ~/.nvm ]; then
     export NVM_DIR=~/.nvm
@@ -53,23 +55,31 @@ function docker_image_check() {
 docker_image_check
 
 function build_pj() {
-  if [ $# -eq 0 ]; then
-    echo "usage: build_pj PJ_DIR" >&2
-    return 1
-  fi
-
-  cd "$1" || return 1
+  cd "$DIR"
   pnpm install && pnpm format && pnpm run build
   return $?
 }
 
-function docker_build_pj() {
-  if [ $# -eq 0 ]; then
-    echo "usage: docker_build_pj PJ_DIR" >&2
-    return 1
-  fi
+function docker_exec() {
+  cd "$DIR"
 
-  cd "$1" || return 1
+  docker run -it --rm \
+    --user $(id -u):$(id -g) \
+    -e HOME=/home/node \
+    -v .:/home/node/src \
+    -v ~/.cache/pnpm:/home/node/.cache/pnpm \
+    -v ~/.npm:/home/node/.npm \
+    -v ~/.npmrc:/home/node/.npmrc \
+    -v $(dirname $(pnpm store path)):/home/node/src/.pnpm-store \
+    -w /home/node/src \
+    "$NODE_CONTAINER_NAME" "$@" || return $?
+
+  [ -e .pnpm-store ] && rmdir .pnpm-store
+  return $?
+}
+
+function docker_build_pj() {
+  cd "$DIR"
   [ -e ./dist ] && rm -vrf ./dist
 
   docker run -it --rm \
@@ -79,38 +89,34 @@ function docker_build_pj() {
     -v ~/.cache/pnpm:/home/node/.cache/pnpm \
     -v $(dirname $(pnpm store path)):/home/node/src/.pnpm-store \
     -w /home/node/src \
-    pnpm:latest bash -c 'pnpm install && pnpm format && pnpm run build' || return $?
+    "$NODE_CONTAINER_NAME" bash -c 'pnpm install && pnpm format && pnpm run build' || return $?
 
   [ -e .pnpm-store ] && rmdir .pnpm-store
   return $?
 }
 
 function pj_exec() {
-  if [ $# -lt 2 ]; then
-    echo "usage: pj_exec PJ_DIR CMD ..." >&2
+  cd "$DIR"
+
+  if [ $# -lt 1 ]; then
+    echo "usage: pj_exec CMD ..." >&2
     return 1
   fi
-
-  cd "$1" || return 1
-
-  shift
 
   "$@"
   return $?
 }
 
 function pj_pnpm() {
-  if [ $# -lt 2 ]; then
-    echo "usage: pj_pnpm PJ_DIR PNPM_ARGS..." >&2
+  cd "$DIR"
+
+  if [ $# -lt 1 ]; then
+    echo "usage: pj_pnpm PNPM_ARGS..." >&2
     return 1
   fi
 
-  local dir="$1"
-
-  shift
-
-  pj_exec "$dir" pnpm install || return $?
-  pj_exec "$dir" pnpm "$@"
+  pj_exec pnpm install || return $?
+  pj_exec pnpm "$@"
   return $?
 }
 
