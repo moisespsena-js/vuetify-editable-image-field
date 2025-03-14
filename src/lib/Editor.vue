@@ -25,6 +25,9 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  translator: {
+
+  },
   container: {},
   options: {
     type: Object,

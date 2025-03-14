@@ -41,7 +41,7 @@
 }
 </style>
 
-<script>
+<script lang="ts">
 import deviceorientation from "deviceorientation-js";
 import { drawRotated } from "rotate-canvas";
 
@@ -135,33 +135,38 @@ export default {
         this.innited = true;
       }
     },
-    loadCameras() {
-      navigator.mediaDevices
-        .enumerateDevices()
-        .then((deviceInfos) => {
-          for (let i = 0; i !== deviceInfos.length; ++i) {
-            let deviceInfo = deviceInfos[i];
-            // need to include only devices with proper deviceId (as without permission the deviceId is = '')
-            if (
-              deviceInfo.deviceId &&
-              deviceInfo.kind === "videoinput" &&
-              this.cameras.find((el) => el.deviceId === deviceInfo.deviceId) ===
-                undefined
-            ) {
-              this.cameras.push(deviceInfo);
-            }
-          }
-        })
-        .then(() => {
-          if (!this.innited && this.cameras.length > 0) {
-            if (this.deviceId === null && this.autoStart) {
-              this.start();
-            }
-            this.$emit("init", this.deviceId);
-            this.innited = true;
-          }
-        })
-        .catch((error) => this.$emit("unsupported", error));
+    loadCameras():Promise<any[]> {
+      return new Promise(resolve => {
+        navigator.mediaDevices
+            .enumerateDevices()
+            .then((deviceInfos) => {
+              const items:any[] = [];
+              for (let i = 0; i !== deviceInfos.length; ++i) {
+                let deviceInfo = deviceInfos[i];
+                // need to include only devices with proper deviceId (as without permission the deviceId is = '')
+                if (
+                    deviceInfo.deviceId &&
+                    deviceInfo.kind === "videoinput" &&
+                    this.cameras.find((el) => el.deviceId === deviceInfo.deviceId) ===
+                    undefined
+                ) {
+                  this.cameras.push(deviceInfo)
+                }
+              }
+            })
+            .then(() => {
+              if (!this.innited && this.cameras.length > 0) {
+                if (this.deviceId === null && this.autoStart) {
+                  this.start();
+                }
+                this.$emit("init", this.deviceId);
+                this.innited = true;
+              }
+              resolve(this.cameras)
+            })
+            .catch((error) => this.$emit("unsupported", error));
+      })
+
     },
     changeCamera(deviceId) {
       if (this.deviceId !== deviceId) {

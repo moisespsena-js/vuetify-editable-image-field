@@ -1,242 +1,250 @@
 <template>
   <v-card height="100%" style="display: flex; flex-direction: column">
-    <v-toolbar v-if="closable" style="justify-content: center">
-      <v-btn
-        density="compact"
-        size="x-large"
-        icon="mdi-camera-retake"
-        @click="loadCameras"
+    <v-toolbar density="compact" v-if="closable" style="justify-content: center">
+      <IconButton
+          :title="translate.loadCameras"
+          density="compact"
+          size="x-large"
+          icon="mdi-camera-retake"
+          @click="loadCameras"
       />
       <div>
         <v-select
-          hide-details
-          density="compact"
-          :items="cameras"
-          item-title="label"
-          item-value="deviceId"
-          v-model="deviceId"
-          @update:model-value="setCamera"
+            hide-details
+            density="compact"
+            :items="cameras"
+            item-title="label"
+            item-value="deviceId"
+            v-model="deviceId"
+            @update:model-value="setCamera"
         ></v-select>
       </div>
-      <v-btn
-        density="compact"
-        size="x-large"
-        icon="mdi-camera-flip"
-        @click="flipCamera"
-        v-if="cameras.length > 1"
+      <IconButton
+          :title="translate.flipCamera"
+          density="compact"
+          size="x-large"
+          icon="mdi-camera-flip"
+          @click="flipCamera"
+          v-if="cameras.length > 1"
       />
       <template v-slot:prepend>
-        <v-btn disabled></v-btn>
+        <v-btn disabled/>
       </template>
       <template v-slot:append>
-        <v-btn icon="mdi-close" @click="closeHandler"></v-btn>
+        <IconButton :title="translate.close" icon="mdi-close" @click="closeHandler"/>
       </template>
     </v-toolbar>
+    <v-divider/>
     <v-card-text
-      style="
+        style="
         overflow: hidden;
         display: flex;
         align-items: center;
         justify-content: center;
         padding: 0;
       "
-      class="webcam"
+        class="webcam"
     >
       <WebCam
-        ref="webcam"
-        @init="webcamInit"
-        @clear="clear"
-        @stop="stop"
-        @start="start"
-        @pause="pause"
-        @resume="resume"
-        @error="error"
-        @unsupported="unsupported"
-        @photoTaken="photoTakenEvent"
-        :shutterEffect="fullscreen"
+          ref="webcam"
+          @init="webcamInit"
+          @clear="clear"
+          @stop="stop"
+          @start="start"
+          @pause="pause"
+          @resume="resume"
+          @error="error"
+          @unsupported="unsupported"
+          @photoTaken="photoTakenEvent"
+          :shutterEffect="fullscreen"
       />
     </v-card-text>
+    <v-divider/>
     <v-card-actions style="justify-content: center">
-      <v-btn
-        color="primary"
-        variant="flat"
-        density="compact"
-        size="x-large"
-        icon="mdi-image"
-        @click="takePhoto"
+      <template v-if="picture.url">
+        <IconButton
+            :title="translate.clear"
+            variant="flat"
+            density="compact"
+            size="x-large"
+            icon="mdi-arrow-left"
+            @click="takenCancel"
+        />
+        <IconButton
+            :title="translate.save"
+            color="primary"
+            variant="flat"
+            density="compact"
+            size="x-large"
+            icon="mdi-check-bold"
+            @click="doSave"
+        />
+      </template>
+      <IconButton
+          v-else
+          :title="translate.takePicture"
+          color="primary"
+          variant="flat"
+          density="compact"
+          size="x-large"
+          icon="mdi-image"
+          @click="takePhoto"
       />
     </v-card-actions>
   </v-card>
 </template>
 
-<style scoped></style>
+<script lang="ts" setup>
+import {onBeforeUnmount, onMounted, useTemplateRef, watch, ref, computed, useAttrs} from "vue";
+import {Translator} from "@/lib/webcam/translator";
+import IconButton from "@/lib/IconButton.vue";
+import {Picture} from "@/lib/webcam/types.js";
 
-<style></style>
-
-<script>
-import WebCam from "./WebCam.vue";
-import { useTemplateRef } from "vue";
-
-export default {
-  props: {
-    reloadCamerasButton: {
-      type: Object,
-      default: {
-        display: false,
-        text: "Reload cameras",
-        css: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-500 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
+const props = defineProps({
+      fullscreenState: {
+        type: Boolean,
+        default: false,
       },
-    },
-    takePhotoButton: {
-      type: Object,
-      default: {
-        display: true,
-        text: "Take a photo",
-        css: "inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-500 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
+      closable: {
+        type: Boolean,
+        default: false,
       },
-    },
-    selectCameraLabel: {
-      type: String,
-      default: "Select camera...",
-    },
-    fullscreenState: {
-      type: Boolean,
-      default: false,
-    },
-    closable: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  data() {
-    return {
-      webcam: useTemplateRef("webcam"),
-      cameras: [],
-      deviceId: "",
-      fullscreen: false,
-      photoTaken: false,
-      photoFailed: false,
-      reloadCamInterval: null,
-    };
-  },
-  emits: [
-    "clear",
-    "stop",
-    "start",
-    "pause",
-    "resume",
-    "error",
-    "unsupported",
-    "init",
-    "photoTaken",
-    "fullscreen",
-    "close",
-  ],
-  beforeUnmount() {
-    if (this.reloadCamInterval) {
-      clearInterval(this.reloadCamInterval);
-    }
-    this.exit();
-  },
-  methods: {
-    async takePhoto() {
+      translate: {
+        type: Translator,
+        default: () => new Translator()
+      },
+      save: {
+        type: Function,
+        default: null
+      }
+    }),
+    webcam = useTemplateRef("webcam"),
+    cameras = computed(() => {
+      return webcam.value?.cameras || []
+    }),
+    deviceId = ref(""),
+    fullscreen = ref(false),
+    photoTaken = ref(false),
+    photoFailed = ref(false),
+    reloadCamInterval = {value: null},
+    picture = ref(new Picture()),
+    $emit = defineEmits([
+      "clear",
+      "stop",
+      "start",
+      "photoSave",
+      "pause",
+      "resume",
+      "error",
+      "unsupported",
+      "init",
+      "photoTaken",
+      "fullscreen",
+      "close",
+    ]),
+
+    takePhoto = async () => {
       try {
-        await this.$refs.webcam.takePhoto();
-        this.photoTaken = true;
+        await webcam.value.takePhoto();
+        photoTaken.value = true;
         setTimeout(() => {
-          this.photoTaken = false;
+          photoTaken.value = false;
         }, 500);
       } catch (err) {
-        this.photoFailed = true;
+        photoFailed.value = true;
         setTimeout(() => {
-          this.photoFailed = false;
+          photoFailed.value = false;
         }, 500);
       }
     },
-    loadCameras() {
-      this.webcam.loadCameras();
-      this.cameras = this.$refs.webcam.cameras;
+    loadCameras = ():Promise<any[]> => {
+      return webcam.value.loadCameras();
     },
-    webcamInit(deviceId) {
-      this.deviceId = deviceId;
-      this.$emit("init", this.deviceId);
+    webcamInit = (devId) => {
+      deviceId.value = devId;
+      $emit("init", devId.value);
     },
-    setCamera() {
-      this.$refs.webcam.changeCamera(
-        this.deviceId === "" ? null : this.deviceId,
+    setCamera = () => {
+      webcam.value.changeCamera(
+          deviceId.value === "" ? null : deviceId.value,
       );
     },
-    flipCamera() {
-      this.loadCameras();
-      // flipping camera will select the next one from the list, but on most device there will be only 2, if < 2 it will not be shown
-      if (this.cameras.length > 1) {
-        let currentIndex = this.cameras.findIndex(
-          (el) => el.deviceId === this.deviceId,
-        );
-        let newIndex = currentIndex + 1;
-        if (newIndex >= this.cameras.length) {
-          newIndex = 0;
-        }
+    flipCamera = () => {
+      loadCameras().then(() => {
+        // flipping camera will select the next one from the list, but on most device there will be only 2, if < 2 it will not be shown
+        if (cameras.value.length > 1) {
+          let currentIndex = cameras.value.findIndex(
+              (el) => el.deviceId === deviceId.value,
+          );
+          let newIndex = currentIndex + 1;
+          if (newIndex >= cameras.value.length) {
+            newIndex = 0;
+          }
 
-        this.deviceId = this.cameras[newIndex].deviceId;
-        this.$refs.webcam.changeCamera(this.cameras[newIndex].deviceId);
-      }
+          deviceId.value = cameras.value[newIndex].deviceId;
+          webcam.value.changeCamera(cameras.value[newIndex].deviceId);
+        }
+      })
     },
-    exit() {
-      this.$refs.webcam.stop();
+    exit = () => {
+      webcam.value.stop();
     },
-    closeHandler() {
-      this.exit();
-      this.$emit("close");
+    closeHandler = () => {
+      exit();
+      $emit("close");
     },
     // emits
-    clear() {
-      this.$emit("clear");
+    clear = () => {
+      $emit("clear");
     },
-    stop() {
-      this.$emit("stop");
+    stop = () => {
+      $emit("stop");
     },
-    start() {
-      this.$emit("start");
+    start = () => {
+      $emit("start");
     },
-    pause() {
-      this.$emit("pause");
+    pause = () => {
+      $emit("pause");
     },
-    resume() {
-      this.$emit("resume");
+    resume = () => {
+      $emit("resume");
     },
-    error(err) {
-      this.$emit("error", err);
+    error = (err) => {
+      $emit("error", err);
     },
-    unsupported(err) {
-      this.$emit("unsupported", err);
+    unsupported = (err) => {
+      $emit("unsupported", err);
     },
-    photoTakenEvent({ blob, image_data_url }) {
-      this.$emit("photoTaken", { blob, image_data_url });
+    photoTakenEvent = ({blob, image_data_url}) => {
+      picture.value.set(blob, image_data_url)
+      webcam.value.pause();
     },
-  },
-  mounted() {
-    console.log(this.closable);
-    this.cameras = this.webcam.cameras;
-    if (this.cameras?.length === 0) {
-      // if no camera found, we will try to refresh cameras list each second until there is some camera
-      this.reloadCamInterval = setInterval(() => {
-        this.loadCameras();
-        if (this.cameras.length > 0) {
-          clearInterval(this.reloadCamInterval);
-          // most likely due to permission, so we init afterwards
-          this.$refs.webcam.init();
-        }
-      }, 10000);
+    doSave = () => {
+      $emit("photoTaken", picture.value);
+    },
+    takenCancel = () => {
+      picture.value.clear()
+      webcam.value.resume()
     }
-  },
-  watch: {
-    fullscreenState: {
-      immediate: true,
-      handler: function (newVal) {
-        this.fullscreen = newVal;
-      },
-    },
-  },
-};
+
+onMounted(() => {
+  if (cameras.value.length === 0) {
+    // if no camera found, we will try to refresh cameras list each second until there is some camera
+    reloadCamInterval.value = setTimeout(() => {
+      loadCameras().then(value => {
+        if (value.length > 0) {
+          clearInterval(reloadCamInterval.value);
+          // most likely due to permission, so we init afterwards
+          webcam.value.init();
+        }
+      });
+    }, 10000);
+  }
+})
+onBeforeUnmount(() => {
+  if (reloadCamInterval.value) {
+    clearInterval(reloadCamInterval.value);
+  }
+  exit();
+})
 </script>

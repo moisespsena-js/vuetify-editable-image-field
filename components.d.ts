@@ -7,8 +7,10 @@ export {}
 
 declare module 'vue' {
   export interface GlobalComponents {
+    Button: typeof import('./src/lib/Button.vue')['default']
     Editor: typeof import('./src/lib/Editor.vue')['default']
     Field: typeof import('./src/lib/Field.vue')['default']
+    IconButton: typeof import('./src/lib/IconButton.vue')['default']
     Input: typeof import('./src/lib/Input.vue')['default']
     WebCam: typeof import('./src/lib/webcam/WebCam.vue')['default']
     WebCamUI: typeof import('./src/lib/webcam/WebCamUI.vue')['default']

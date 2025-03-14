@@ -5,6 +5,17 @@ import type { Controller } from "@/lib/types.ts";
 import { Timer } from "@/lib/types.ts";
 import Editor from "@/lib/Editor.vue";
 import WebCamUI from "@/lib/webcam/WebCamUI.vue";
+import {FieldTranslator} from "@/lib/translator.ts";
+import IconButton from "@/lib/IconButton.vue";
+import type {Picture} from "@/lib/webcam/types.ts";
+
+export interface Translator {
+  loadImageError:String
+  releaseFileHere:String
+  unsupportedFileTypeError:String
+  addFromLink:String
+  save:String
+}
 
 const props = defineProps({
   card: {
@@ -14,12 +25,8 @@ const props = defineProps({
     },
   },
   translate: {
-    type: Object,
-    default: {
-      loadImageError: "An error occurred on load image.",
-      releaseFileHere: "Release here...",
-      unsupportedFileTypeError: "Unsupported file type.",
-    },
+    type: FieldTranslator,
+    default: () => new FieldTranslator(),
   },
   readonly: {
     type: Boolean,
@@ -51,6 +58,7 @@ const $attrs = useAttrs(),
   saving = ref(false),
   localLoading = ref(false),
   capturingCamera = ref(false),
+    isAddFromLink = ref(false),
   dimensions = ref({
     width: 0,
     height: 0,
@@ -61,7 +69,7 @@ const $attrs = useAttrs(),
   fileInput = computed((): HTMLInputElement => {
     return fileInputEl.value as HTMLInputElement;
   }),
-  dotStyle = computed(() => {
+  dotStyle = computed(():any => {
     let s = $attrs.style || {};
 
     return {
@@ -153,6 +161,10 @@ function add() {
   fileInput.value.click();
 }
 
+function addFromLink() {
+  isAddFromLink.value = true
+}
+
 function imageAdded() {
   fileToURL(fileInput.value.files?.item(0) as File).then((value) => {
     setTimeout(
@@ -220,10 +232,11 @@ function initialized(c: Controller) {
   save.style.display = "";
 }
 
-function photoTaken(data: any) {
+function photoTaken(data:any) {
+  console.log("photoSave", data)
   capturingCamera.value = false;
   storing.v = true;
-  model.value = data.image_data_url;
+  model.value = data.url;
 }
 </script>
 <style scoped>
@@ -308,7 +321,7 @@ function photoTaken(data: any) {
           <v-overlay
             class="align-center justify-center"
             contained
-            model-value="true"
+            :model-value="true"
           >
             <v-progress-circular
               color="primary"
@@ -324,27 +337,32 @@ function photoTaken(data: any) {
         >
           <v-card variant="flat" :style="dotStyle">
             <template #append v-if="imageUrl">
-              <v-btn icon="mdi-arrow-expand" density="comfortable">
-                <v-icon>mdi-arrow-expand</v-icon>
-                <v-dialog activator="parent" fullscreen>
-                  <template v-slot:default="{ isActive }">
-                    <v-card class="image-full bg-transparent">
-                      <template v-slot:image>
-                        <v-spacer @click="isActive.value = false"></v-spacer>
-                        <img :src="imageUrl" />
-                        <v-spacer @click="isActive.value = false">
-                          <v-btn
-                            icon="mdi-close"
-                            class="btn-close"
-                            density="comfortable"
-                            @click="isActive.value = false"
-                          ></v-btn>
-                        </v-spacer>
+              <v-tooltip :text="translate.fullView">
+                <template v-slot:activator="{ props }">
+                  <v-btn icon="mdi-arrow-expand" density="comfortable" v-bind="props">
+                    <v-icon>mdi-arrow-expand</v-icon>
+                    <v-dialog activator="parent" fullscreen>
+                      <template v-slot:default="{ isActive }">
+                        <v-card class="image-full bg-transparent">
+                          <template v-slot:image>
+                            <v-spacer @click="isActive.value = false"></v-spacer>
+                            <img :src="imageUrl" />
+                            <v-spacer @click="isActive.value = false">
+                              <v-btn
+                                  icon="mdi-close"
+                                  class="btn-close"
+                                  density="comfortable"
+                                  @click="isActive.value = false"
+                              ></v-btn>
+                            </v-spacer>
+                          </template>
+                        </v-card>
                       </template>
-                    </v-card>
-                  </template>
-                </v-dialog>
-              </v-btn>
+                    </v-dialog>
+                  </v-btn>
+                </template>
+              </v-tooltip>
+
             </template>
             <template v-slot:image v-if="!loadImageError">
               <slot v-if="imageUrl" name="image" :src="imageUrl">
@@ -419,26 +437,35 @@ function photoTaken(data: any) {
             density="comfortable"
             @click="reset"
           />
-          <v-btn
+          <IconButton
             v-if="imageUrl"
             icon="mdi-pencil"
             color="primary"
             density="comfortable"
             @click="edit"
+            :title="translate.edit"
           />
-          <v-btn
+          <IconButton
             icon="mdi-camera"
             color="primary"
             density="comfortable"
             @click="openCamera"
+            :title="translate.takePictureFromCamera"
           />
-          <v-btn
+          <IconButton
+              icon="mdi-link-variant-plus"
+              color="primary"
+              density="comfortable"
+              @click="addFromLink"
+              :title="translate.addFromLink"
+          />
+          <IconButton
             icon="mdi-plus"
             color="primary"
             density="comfortable"
             @click="add"
-          >
-          </v-btn>
+            :title="translate.addFromLocalFile"
+          />
         </template>
         <slot
           name="append-edit"
@@ -460,6 +487,30 @@ function photoTaken(data: any) {
       @close="capturingCamera = false"
     />
   </v-dialog>
+  <v-dialog
+      v-model="isAddFromLink"
+      @close="isAddFromLink = false"
+  >
+    <v-card>
+      <v-toolbar density="compact">
+        <v-toolbar-title>
+        {{translate.addFromLink}}
+        </v-toolbar-title>
+        <template v-slot:append>
+          <IconButton :title="translate.close" icon="mdi-close" @click="isAddFromLink = false" />
+        </template>
+      </v-toolbar>
+      <v-card-text>
+        Hello
+      </v-card-text>
+      <v-card-actions>
+        <v-btn>
+          <template #prepend><v-icon icon="mdi-check-bold"/></template>
+          {{translate.save}}
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
   <v-dialog v-model="editing" width="auto" :fullscreen="!saving">
     <v-progress-circular
       color="primary"
@@ -468,13 +519,14 @@ function photoTaken(data: any) {
       width="4"
     ></v-progress-circular>
     <v-card ref="block">
-      <v-toolbar v-if="capturingCamera">
+      <v-toolbar v-if="capturingCamera" density="compact">
         <template v-slot:append>
-          <v-btn icon="mdi-close"></v-btn>
+          <IconButton :title="translate.close" icon="mdi-close" @click="capturingCamera = false" />
         </template>
       </v-toolbar>
       <template v-if="capturingCamera">
-        <WebCamUI :fullscreenState="false" @photoTaken="photoTaken" />
+        <WebCamUI @photoTaken="photoTaken">
+        </WebCamUI>
       </template>
       <Editor
         v-else

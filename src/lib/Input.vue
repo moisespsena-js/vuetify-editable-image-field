@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { computed, ref, useAttrs, useSlots } from "vue";
-import { URLValue } from "@/lib/types.ts";
+import {computed, useAttrs, useSlots} from "vue";
+import {URLValue} from "./types";
 
 const props = defineProps({
   field: {
@@ -45,73 +45,80 @@ const props = defineProps({
 });
 
 const $slots = useSlots(),
-  $attrs = useAttrs(),
-  model = defineModel(),
-  hasError = computed(
-    (): Boolean =>
-      props.error ||
-      (props.errorMessages ? props.errorMessages.length > 0 : false),
-  ),
-  theErrorMessages = computed(() =>
-    props.errorMessages?.length
-      ? props.maxErrors
-        ? props.errorMessages.slice(0, props.maxErrors)
-        : props.errorMessages
-      : [],
-  );
+    $attrs = useAttrs(),
+    model = defineModel(),
+    hasError = computed(
+        (): boolean =>
+            props.error ? true :
+                (props.errorMessages ? props.errorMessages.length > 0 : false),
+    ),
+    theErrorMessages = computed(() =>
+        props.errorMessages?.length
+            ? props.maxErrors
+                ? props.errorMessages.slice(0, props.maxErrors)
+                : props.errorMessages
+            : [],
+    ),
+    cv = computed({
+      get() {
+        return model.value;
+      },
+      set(value) {
+        if (props.modelFile) {
+          new URLValue(value as string)
+              .toRaw()
+              .toBinary()
+              .then((value) =>
+                  value
+                      .toBlob()
+                      .then((value) =>
+                          value.toFile().then((value) => (model.value = value)),
+                      ),
+              );
+        } else {
+          model.value = value;
+        }
+      },
+    }),
+    dotStyle = computed(():any => {
+      let s:any = {};
 
-const cv = computed({
-  get() {
-    return model.value;
-  },
-  set(value) {
-    if (props.modelFile) {
-      new URLValue(value as string)
-        .toRaw()
-        .toBinary()
-        .then((value) =>
-          value
-            .toBlob()
-            .then((value) =>
-              value.toFile().then((value) => (model.value = value)),
-            ),
-        );
-    } else {
-      model.value = value;
-    }
-  },
-});
+      if($attrs.width) s.width = $attrs.width
+      if($attrs.height) s.height = $attrs.height
+
+      return s;
+    });
 </script>
 
 <template>
   <v-input
-    class="v-input-tui-image-editor-field"
-    :style="{ width: $attrs.width, height: $attrs.height }"
-    :hint="hint"
-    :label="label"
-    :error="hasError"
-    :max-errors="maxErrors"
+      class="v-input-tui-image-editor-field"
+      :style="dotStyle"
+      :hint="hint"
+      :label="label"
+      :error="hasError"
+      :max-errors="maxErrors"
   >
     <Field
-      :initial-value="initialValue"
-      width="100%"
-      height="100%"
-      v-bind="field"
-      :readonly="readonly"
-      v-model="cv"
-      :loading="loading"
+        :initial-value="initialValue"
+        width="100%"
+        height="100%"
+        v-bind="field"
+        :readonly="readonly"
+        v-model="cv"
+        :loading="loading"
     >
       <template #text>
         <v-alert
-          v-if="hasError"
-          tile
-          density="compact"
-          type="error"
-          variant="outlined"
-          style="background-color: rgba(255, 255, 255, 0.8)"
+            v-if="hasError"
+            tile
+            density="compact"
+            type="error"
+            variant="outlined"
+            style="background-color: rgba(255, 255, 255, 0.8)"
         >
           <template #prepend>
-            <v-icon icon="mdi-close-circle" size="small" />
+            <v-icon icon="mdi-close-circle" size="small"/>
           </template>
           <ol class="v-input-tui-image-editor-field--error--messages">
             <li v-for="msg in theErrorMessages">{{ msg }}</li>
@@ -143,8 +150,8 @@ const cv = computed({
 }
 
 .v-input-tui-image-editor-field--error
-  .v-alert
-  .v-input-tui-image-editor-field--error--messages {
+.v-alert
+.v-input-tui-image-editor-field--error--messages {
   padding-top: 0;
   font-weight: 400;
   font-size: 12px;
@@ -152,9 +159,9 @@ const cv = computed({
 }
 
 .v-input-tui-image-editor-field--error
-  .v-alert
-  .v-input-tui-image-editor-field--error--messages
-  li {
+.v-alert
+.v-input-tui-image-editor-field--error--messages
+li {
   list-style-type: decimal;
 }
 
@@ -163,9 +170,9 @@ const cv = computed({
 }
 
 .v-input--error
-  > .v-input__control
-  > .v-card-actions
-  > .tui-image-editor-field {
+> .v-input__control
+> .v-card-actions
+> .tui-image-editor-field {
   padding: 2px;
   border-bottom: 1px solid rgb(var(--v-theme-error));
 }
